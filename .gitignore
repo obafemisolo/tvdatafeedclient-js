@@ -9,6 +9,7 @@
 # testing
 /coverage
 tvClient.js
+/src/liveTest.ts
 
 # production
 /build

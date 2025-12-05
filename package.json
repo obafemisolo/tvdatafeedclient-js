@@ -1,13 +1,18 @@
 {
   "name": "tvdatafeedclient-js",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/index.js",
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     }
   },
   "files": [
@@ -15,8 +20,9 @@
   ],
   "scripts": {
     "build": "tsc",
-    "start": "node example/candles.js",
-    "test": "node test/test.js"
+    "start": "node examples/candles.js",
+    "test": "node test/test.js",
+    "dev": "tsx watch src/index.ts"
   },
   "type": "module",
   "keywords": [

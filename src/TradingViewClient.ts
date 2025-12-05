@@ -9,8 +9,9 @@ export interface TradingViewClient {
     symbol?: string,
     resolution?: string,
     nBars?: number
-  ): Promise<CandleResult[]>;
+  ): Promise<CandleResult[] | ErrorResult>;
 }
+
 export type RequestParams = {
   exchange: string;
   symbol: string;
@@ -22,7 +23,12 @@ interface SeriesCandle {
   v: [number, number, number, number, number, number];
 }
 
-interface CandleResult {
+interface ErrorResult {
+  success: boolean;
+  errorMsg: string;
+}
+
+type CandleResult = {
   time: Date;
   symbol: string;
   open: number;
@@ -30,16 +36,19 @@ interface CandleResult {
   low: number;
   close: number;
   volume: number;
-}
+};
 
 export class TvDataFeed implements TradingViewClient {
   private readonly TV_SOCKET: string =
     "wss://data.tradingview.com/socket.io/websocket";
+
   private session: string = this.tvSessionId("qs");
   private chartSession: string = this.tvSessionId("cs");
   private ws: WebSocket | null = null;
-  private candlePromise: Promise<CandleResult[]> | null = null;
-  private candleResolved: ((value: CandleResult[]) => void) | null = null;
+  private candlePromise: Promise<CandleResult[] | ErrorResult> | null = null;
+  private candleResolved:
+    | ((value: CandleResult[] | ErrorResult) => void)
+    | null = null;
   private exchangeSymbol: string | null = null;
   private auth_token: string;
 
@@ -93,16 +102,6 @@ export class TvDataFeed implements TradingViewClient {
 
   public disconnect(): void {
     if (this.ws) {
-      this.send({
-        m: "chart_remove_series",
-        p: [this.session, this.chartSession],
-      });
-
-      this.send({
-        m: "chart_delete_session",
-        p: [this.session],
-      });
-
       this.ws.close();
       this.ws = null;
     }
@@ -142,6 +141,26 @@ export class TvDataFeed implements TradingViewClient {
   private handleMessage(data: WebSocket.RawData) {
     const text = data.toString();
 
+    const symbolError = text.split("~m~").filter((m) => {
+      return m.includes("symbol_error");
+    });
+
+    const noSuchSymbolError = text.split("~m~").filter((p) => {
+      return p.includes("no_such_symbol");
+    });
+
+    if (symbolError.length || noSuchSymbolError.length) {
+      const candle = {
+        success: false,
+        errorMsg:
+          "Invalid Symbol or this Symbol does not exist in this Exchange.",
+      };
+      if (this.candleResolved) {
+        this.candleResolved(candle);
+        this.candlePromise = null;
+      }
+    }
+
     const messages = text.split("~m~").filter((m) => {
       return m.match("timescale_update");
     });
@@ -177,12 +196,14 @@ export class TvDataFeed implements TradingViewClient {
             this.candlePromise = null;
           }
         }
+        return;
       } catch (err) {
         if (err && typeof err === "object" && "message" in err) {
           console.error("Parse error:", (err as { message: string }).message);
         } else {
           console.error("Parse error:", err);
         }
+        return;
       }
     });
     //  console.table(this.candleResolved);
@@ -193,7 +214,7 @@ export class TvDataFeed implements TradingViewClient {
     symbol = "BTCUSDT",
     resolution = "1",
     nBars = 300
-  ): Promise<CandleResult[]> {
+  ): Promise<CandleResult[] | ErrorResult> {
     if (this.candlePromise) {
       return Promise.reject("Another candle request is already in progress.");
     }
@@ -203,40 +224,42 @@ export class TvDataFeed implements TradingViewClient {
     }
 
     //Get candles
-    this.candlePromise = new Promise((resolve) => {
-      this.candleResolved = resolve;
-      this.exchangeSymbol = `${exchange}:${symbol}`;
+    this.candlePromise = new Promise<CandleResult[] | ErrorResult>(
+      (resolve) => {
+        this.candleResolved = resolve;
+        this.exchangeSymbol = `${exchange}:${symbol}`;
 
-      //quote symbol sir
-      this.send({
-        m: "quote_add_symbols",
-        p: [this.session, this.exchangeSymbol],
-      });
+        //quote symbol sir
+        this.send({
+          m: "quote_add_symbols",
+          p: [this.session, this.exchangeSymbol],
+        });
 
-      //resolve symbol
-      this.send({
-        m: "resolve_symbol",
-        p: [
-          this.chartSession,
-          "sds_sym_1",
-          `={"adjustment":"splits","symbol":"${this.exchangeSymbol}"}`,
-        ],
-      });
+        //resolve symbol
+        this.send({
+          m: "resolve_symbol",
+          p: [
+            this.chartSession,
+            "sds_sym_1",
+            `={"adjustment":"splits","symbol":"${this.exchangeSymbol}"}`,
+          ],
+        });
 
-      //and create series
-      this.send({
-        m: "create_series",
-        p: [
-          this.chartSession,
-          "sds_1",
-          "s1",
-          "sds_sym_1",
-          resolution,
-          nBars,
-          "",
-        ],
-      });
-    });
+        //and create series
+        this.send({
+          m: "create_series",
+          p: [
+            this.chartSession,
+            "sds_1",
+            "s1",
+            "sds_sym_1",
+            resolution,
+            nBars,
+            "",
+          ],
+        });
+      }
+    );
     return this.candlePromise;
   }
 }

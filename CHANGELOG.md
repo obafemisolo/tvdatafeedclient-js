@@ -23,3 +23,12 @@
 `js import { TvDataFeed } from "tvdatafeedclient-js";`
 
 - More improvements
+
+## 3.0.2 - 2025-12-05
+
+## Changed
+
+- Added Error Message
+- Return Error object wgen symbol does not exist or match the exchange
+- getCandle() method now call connect before fetching candle.
+- Other Bug fix
