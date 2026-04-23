@@ -19,10 +19,10 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "start": "node examples/candles.js",
+    "build": "node init && tsc",
+    "start": "node init && node examples/candles.js",
     "test": "node test/test.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "node init && tsx watch src/index.ts"
   },
   "type": "module",
   "keywords": [
