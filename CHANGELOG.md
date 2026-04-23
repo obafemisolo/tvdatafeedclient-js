@@ -32,3 +32,21 @@
 - Return Error object wgen symbol does not exist or match the exchange
 - getCandle() method now call connect before fetching candle.
 - Other Bug fix
+
+## 3.0.3 - 2026-04-23
+
+## Added
+
+- Added support for forex / fiat pairs by allowing `getCandles()` to accept a params object.
+- Added support for raw TradingView symbols like `USDNGN` and fully-qualified symbols like `FX_IDC:USDNGN`.
+- Added README usage examples for forex / fiat candle requests.
+
+## Changed
+
+- Improved candle parsing so instruments without volume now return `volume: 0` instead of failing.
+- Updated symbol error messaging to better reflect TradingView market/provider symbols instead of only exchange-based symbols.
+
+## Fixed
+
+- Fixed the websocket connection keeping Node.js processes alive after candle data had already been returned.
+- Fixed websocket error handling so connection failures reject properly.

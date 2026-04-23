@@ -4,7 +4,13 @@ import { TvDataFeed } from "tvdatafeedclient-js";
   const tv = new TvDataFeed();
   await tv.connect(); //optional
 
-  const candles = await tv.getCandles("BINANCE", "ALPACAUSDT", "1", 300);
+  const candles = await tv.getCandles({
+    //  exchange: "BYBIT",
+    symbol: "USDNGN",
+    resolution: "1H",
+    nBars: 300,
+  });
+
   if (!Array.isArray(candles)) {
     return console.log(candles);
   }

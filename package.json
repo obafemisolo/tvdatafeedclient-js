@@ -37,7 +37,8 @@
   "license": "MIT",
   "description": "What could Be! Lightweight TradingView Websocket SDK for retrieving candle data",
   "dependencies": {
-    "uuid": "^11.1.0",
+    "tsc": "^2.0.4",
+    "typescript": "^6.0.3",
     "ws": "^8.18.3"
   },
   "repository": {
@@ -49,6 +50,8 @@
   },
   "homepage": "https://github.com/Solexki/tvdatafeedclient-js#readme",
   "devDependencies": {
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "@types/node": "^24.5.2",
+    "ts-node": "^10.9.2"
   }
 }

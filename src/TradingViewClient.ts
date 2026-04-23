@@ -1,26 +1,34 @@
 import WebSocket from "ws";
-import { v4 } from "uuid";
-const uuidv4 = v4;
+import crypto from "node:crypto";
+const uuidv4 = crypto.randomUUID;
 
 export interface TradingViewClient {
   connect(): Promise<void>;
+  getCandles(params: GetCandlesParams): Promise<CandleResult[] | ErrorResult>;
   getCandles(
     exchange?: string,
     symbol?: string,
     resolution?: string,
-    nBars?: number
+    nBars?: number,
   ): Promise<CandleResult[] | ErrorResult>;
 }
 
 export type RequestParams = {
-  exchange: string;
+  exchange?: string;
   symbol: string;
   resolution: string;
   nBars: number | string;
 };
 
+export type GetCandlesParams = {
+  exchange?: string;
+  symbol?: string;
+  resolution?: string;
+  nBars?: number;
+};
+
 interface SeriesCandle {
-  v: [number, number, number, number, number, number];
+  v: [number, number, number, number, number, number?];
 }
 
 interface ErrorResult {
@@ -91,7 +99,7 @@ export class TvDataFeed implements TradingViewClient {
       });
 
       this.ws.on("close", () => {
-        // console.log("Disconnected from TradingView");
+        //console.log("Disconnected from TradingView");
 
         this.disconnect();
       });
@@ -153,7 +161,7 @@ export class TvDataFeed implements TradingViewClient {
       const candle = {
         success: false,
         errorMsg:
-          "Invalid Symbol or this Symbol does not exist in this Exchange.",
+          "Invalid symbol or this symbol does not exist for this market/provider.",
       };
       if (this.candleResolved) {
         this.candleResolved(candle);
@@ -184,9 +192,9 @@ export class TvDataFeed implements TradingViewClient {
                   high,
                   low,
                   close,
-                  volume,
+                  volume: volume ?? 0,
                 };
-              }
+              },
             );
 
             candles.forEach((bar) => result.push(bar));
@@ -209,15 +217,72 @@ export class TvDataFeed implements TradingViewClient {
     //  console.table(this.candleResolved);
   }
 
+  private normalizeRequestParams(
+    exchangeOrParams?: string | GetCandlesParams,
+    symbol?: string,
+    resolution = "1",
+    nBars = 300,
+  ): RequestParams {
+    if (typeof exchangeOrParams === "object" && exchangeOrParams !== null) {
+      const params = exchangeOrParams;
+      const normalizedSymbol = params.symbol ?? "BINANCE:BTCUSDT";
+
+      return {
+        exchange: params.exchange,
+        symbol: normalizedSymbol,
+        resolution: params.resolution ?? "1",
+        nBars: params.nBars ?? 300,
+      };
+    }
+
+    return {
+      exchange: exchangeOrParams ?? "BINANCE",
+      symbol: symbol ?? "BTCUSDT",
+      resolution,
+      nBars,
+    };
+  }
+
+  private buildTradingViewSymbol({ exchange, symbol }: RequestParams): string {
+    if (symbol.includes(":")) {
+      return symbol;
+    }
+
+    if (!exchange) {
+      return symbol;
+    }
+
+    return `${exchange}:${symbol}`;
+  }
+
   public async getCandles(
-    exchange = "BINANCE",
+    params: GetCandlesParams,
+  ): Promise<CandleResult[] | ErrorResult>;
+
+  public async getCandles(
+    exchange?: string,
+    symbol?: string,
+    resolution?: string,
+    nBars?: number,
+  ): Promise<CandleResult[] | ErrorResult>;
+
+  public async getCandles(
+    exchangeOrParams: string | GetCandlesParams = "BINANCE",
     symbol = "BTCUSDT",
     resolution = "1",
-    nBars = 300
+    nBars = 300,
   ): Promise<CandleResult[] | ErrorResult> {
     if (this.candlePromise) {
       return Promise.reject("Another candle request is already in progress.");
     }
+
+    const request = this.normalizeRequestParams(
+      exchangeOrParams,
+      symbol,
+      resolution,
+      nBars,
+    );
+
     //Let start connection
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       await this.connect();
@@ -227,7 +292,7 @@ export class TvDataFeed implements TradingViewClient {
     this.candlePromise = new Promise<CandleResult[] | ErrorResult>(
       (resolve) => {
         this.candleResolved = resolve;
-        this.exchangeSymbol = `${exchange}:${symbol}`;
+        this.exchangeSymbol = this.buildTradingViewSymbol(request);
 
         //quote symbol sir
         this.send({
@@ -253,15 +318,15 @@ export class TvDataFeed implements TradingViewClient {
             "sds_1",
             "s1",
             "sds_sym_1",
-            resolution,
-            nBars,
+            request.resolution,
+            request.nBars,
             "",
           ],
         });
-      }
+      },
     );
     return this.candlePromise;
   }
 }
 
-//We wrapped up!
+//We're wrapped up!

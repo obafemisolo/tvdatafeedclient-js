@@ -20,6 +20,7 @@ The day I finally used this package to fetch TradingView data directly from Node
 
 - Retrieve historical candles (open, high, low, close and volume)
 - Binance, Bybit, Mexc and others
+- Forex / fiat pairs like `USDNGN`, `EURUSD` and more
 - No TradingView Account Needed
 - Clean Promise-based API
 
@@ -44,6 +45,51 @@ npm install tvdatafeedclient-js
 `js const { TvDataFeed } = require("tvdatafeedclient-js")`
 
 `js import { TvDataFeed } from "tvdatafeedclient-js";`
+
+---
+
+## Usage
+
+### Crypto
+
+```js
+import { TvDataFeed } from "tvdatafeedclient-js";
+
+const tv = new TvDataFeed();
+const candles = await tv.getCandles("BYBIT", "TONUSDT", "1", 300);
+const candles = await tv.getCandles({
+  exchange: "BYBIT",
+  symbol: "TONUSDT",
+  resolution: "1D",
+  nBars: 300,
+});
+```
+
+### Forex / Fiat Pairs
+
+```js
+import { TvDataFeed } from "tvdatafeedclient-js";
+
+const tv = new TvDataFeed();
+
+// Raw TradingView symbol
+const candles = await tv.getCandles({
+  symbol: "USDNGN",
+  resolution: "1D",
+  nBars: 300,
+});
+
+// Or provider-qualified TradingView symbol when needed
+const candlesWithProvider = await tv.getCandles({
+  symbol: "FX_IDC:USDNGN",
+  resolution: "1D",
+  nBars: 300,
+});
+```
+
+If a forex pair needs a TradingView market/provider prefix, pass the full symbol in `symbol` like `FX_IDC:USDNGN`, or pass `exchange` separately and the package will build `exchange:symbol` for you.
+
+The websocket is safe to leave open in short scripts because it will no longer keep the Node.js process alive by itself. If you are done with the client in a long-running app, you can still call `tv.disconnect()`.
 
 ---
 
